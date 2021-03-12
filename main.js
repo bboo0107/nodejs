@@ -94,9 +94,12 @@ function templateList(filelist){
         var post = qs.parse(body);  //parse querystring 데이터를 쪼개서 String 타입으로 보여줌
         var title = post.title;
         var description = post.description;
+        fs.writeFile(`data/${title}`, description, 'utf8', function(err){
+          response.writeHead(302, {Location: `/?id=${title}`}); // redirection 코드 302 입력후 submit했을때 파일 생성과 동시에 그 페이지로 넘어감
+          response.end('success');
+        })
       }); //정보 수신이 끝났을때 실행되는 콜백 함수
-      response.writeHead(200);
-      response.end('success');
+      
     }else{
       response.writeHead(404);
       response.end('Not found');
