@@ -3,7 +3,7 @@ var fs = require('fs');
 var url = require('url');
 var qs = require('querystring');
 
-function templateHTML(title, list, body){
+function templateHTML(title, list, body, control){
   return `
     <!doctype html>
     <html>
@@ -14,7 +14,7 @@ function templateHTML(title, list, body){
     <body>
       <h1><a href="/">WEB</a></h1>
       ${list}
-      <a href="/create">create</a>
+      ${control}
       ${body}
     </body>
     </html>
@@ -38,7 +38,7 @@ function templateList(filelist){
     var pathname = url.parse(_url, true).pathname;
     
 
-    if(pathname === '/'){
+    if(pathname === '/'){ //home
       if(queryData.id === undefined){
         
         fs.readdir('./data', function(error, filelist){
@@ -47,7 +47,9 @@ function templateList(filelist){
           var description = 'Hello, Node.js'
           var list = templateList(filelist);
           var template = templateHTML(title, list, 
-            `<h2>${title}</h2>${description}`);
+            `<h2>${title}</h2>${description}`,
+            `<a href="/create">create</a>`
+            );
           response.writeHead(200);
           response.end(template);
           });//data안에 있는 파일 목록이 추출       
@@ -58,21 +60,28 @@ function templateList(filelist){
             var title = queryData.id;
             var list = templateList(filelist);  
             var template = templateHTML(title, list, 
-              `<h2>${title}</h2>${description}`);
+              `<h2>${title}</h2>${description}`,
+              ` <a href="/create">create</a> 
+                <a href="/update?id=${title}">update</a>
+                <form action="delete_process" method="post">
+                  <input type="hidden" name="id" value="${title}">
+                  <input type="submit" value="delete">
+                </form>`
+              );
         response.writeHead(200);
         response.end(template);
         });
       }); 
       }
       //쿼리스트링에 따라 파일생성
-    }else if(pathname === '/create'){
+    }else if(pathname === '/create'){ //create페이지
       fs.readdir('./data', function(error, filelist){
         console.log(filelist);
         var title = 'WEB - create';
         var list = templateList(filelist);
         var template = templateHTML(title, list, 
           `
-          <form action="http://localhost:3000/create_process" method="post">
+          <form action="/create_process" method="post">
             <p><input type="text" name="title" placeholder="title"></p>
             <p>
                 <textarea name="description" placeholder="description"></textarea>
@@ -81,7 +90,7 @@ function templateList(filelist){
                 <input type="submit">
             </p>
           </form>
-          `);
+          `, '');
         response.writeHead(200);
         response.end(template);
         });
@@ -100,6 +109,62 @@ function templateList(filelist){
         })
       }); //정보 수신이 끝났을때 실행되는 콜백 함수
       
+    }else if(pathname === '/update'){
+      fs.readdir('./data', function(error, filelist){        
+        fs.readFile(`data/${queryData.id}`,'utf-8', function(err, description){
+          var title = queryData.id;
+          var list = templateList(filelist);  
+          var template = templateHTML(title, list, 
+            `
+            <form action="/update_process" method="post">
+              <input type="hidden" name="id" value="${title}">
+              <p><input type="text" name="title" placeholder="title" value="${title}"></p>
+              <p>
+                  <textarea name="description" placeholder="description">${description}</textarea>
+              </p>
+              <p>
+                  <input type="submit">
+              </p>
+            </form> 
+            `,
+            `<a href="/create">create</a> <a href="/update?id=${title}">update</a>`
+            );
+      response.writeHead(200);
+      response.end(template);
+      });
+    }); 
+    }else if(pathname === '/update_process'){
+      var body = '';
+      request.on('data', function(data){
+        body = body + data;
+      }); //post방식으로 들어오는 데이터의 양이 많을 경우 나눠서 데이터를 받게 함
+      request.on('end', function(){
+        var post = qs.parse(body);  //parse querystring 데이터를 쪼개서 String 타입으로 보여줌
+        var id = post.id;
+        var title = post.title;
+        var description = post.description;
+        fs.rename(`data/${id}`, `data/${title}`, function(error){
+          fs.writeFile(`data/${title}`, description, 'utf8', function(err){
+            response.writeHead(302, {Location: `/?id=${title}`}); // redirection 코드 302 입력후 submit했을때 파일 생성과 동시에 그 페이지로 넘어감
+            response.end();
+          })
+        });
+
+        console.log(post);
+      });
+    }else if(pathname === '/delete_process'){
+      var body = '';
+      request.on('data', function(data){
+        body = body + data;
+      }); //post방식으로 들어오는 데이터의 양이 많을 경우 나눠서 데이터를 받게 함
+      request.on('end', function(){
+        var post = qs.parse(body);  //parse querystring 데이터를 쪼개서 String 타입으로 보여줌
+        var id = post.id;
+        fs.unlink(`data/${id}`, function(error){
+          response.writeHead(302, {Location: `/`}); // redirection 코드 302 입력후 submit했을때 파일 생성과 동시에 그 페이지로 넘어감
+            response.end();
+        })
+      });
     }else{
       response.writeHead(404);
       response.end('Not found');
