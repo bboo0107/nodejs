@@ -3,6 +3,7 @@ var fs = require('fs');
 var url = require('url');
 var qs = require('querystring');
 var template = require('./lib/template.js');
+var path = require('path');
 
   var app = http.createServer(function (request, response) {
     var _url = request.url;
@@ -36,8 +37,9 @@ var template = require('./lib/template.js');
           });//data안에 있는 파일 목록이 추출       
       
       }else{
-        fs.readdir('./data', function(error, filelist){        
-          fs.readFile(`data/${queryData.id}`,'utf-8', function(err, description){
+        fs.readdir('./data', function(error, filelist){  
+          var filteredId = path.parse(queryData.id).base;      
+          fs.readFile(`data/${filteredId}`,'utf-8', function(err, description){
             var title = queryData.id;
             var list = template.List(filelist);  
             var html = template.HTML(title, list, 
@@ -91,8 +93,9 @@ var template = require('./lib/template.js');
       }); //정보 수신이 끝났을때 실행되는 콜백 함수
       
     }else if(pathname === '/update'){
-      fs.readdir('./data', function(error, filelist){        
-        fs.readFile(`data/${queryData.id}`,'utf-8', function(err, description){
+      fs.readdir('./data', function(error, filelist){ 
+        var filteredId = path.parse(queryData.id).base;       
+        fs.readFile(`data/${filteredId}`,'utf-8', function(err, description){
           var title = queryData.id;
           var list = template.List(filelist);  
           var html = template.HTML(title, list, 
@@ -141,7 +144,9 @@ var template = require('./lib/template.js');
       request.on('end', function(){
         var post = qs.parse(body);  //parse querystring 데이터를 쪼개서 String 타입으로 보여줌
         var id = post.id;
-        fs.unlink(`data/${id}`, function(error){
+        var filteredId = path.parse(id).base; 
+        
+        fs.unlink(`data/${filteredId}`, function(error){
           response.writeHead(302, {Location: `/`}); // redirection 코드 302 입력후 submit했을때 파일 생성과 동시에 그 페이지로 넘어감
             response.end();
         })
